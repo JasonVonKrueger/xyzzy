@@ -3,9 +3,13 @@
   "version": "1.0.0",
   "description": "ServiceNow stdio MCP server with OAuth 2.0 authentication",
   "main": "src/index.js",
+  "bin": {
+    "sn-lint": "bin/sn-lint.js"
+  },
   "scripts": {
     "start": "node src/index.js",
-    "test": "node --test"
+    "test": "node --test",
+    "lint:sn": "node bin/sn-lint.js"
   },
   "repository": {
     "type": "git",
@@ -20,6 +24,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "acorn": "^8.18.0",
     "dotenv": "^17.4.2",
     "zod": "^4.5.4"
   }

@@ -1,0 +1,58 @@
+# Example GitHub Actions workflow for sn-lint. Copy it to .github/workflows/sn-lint.yml and adjust
+# SCRIPTS_DIR to the folder holding your exported ServiceNow scripts (folders named after tables, such
+# as sys_script/ or sys_script_include/, let sn-lint detect each script's execution context).
+#
+# Two jobs:
+#   code-scanning  uploads every finding as SARIF, so they show up under Security > Code scanning and as
+#                  annotations on pull requests. Stable fingerprints keep alerts attached as code moves.
+#   gate           fails the build only on findings that are not in the committed baseline file.
+#                  Create the baseline once with:
+#                    node bin/sn-lint.js --write-baseline sn-lint-baseline.json <scripts dir>
+#                  and commit it. Run both from the repository root: fingerprints use paths relative to it.
+
+name: sn-lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  SCRIPTS_DIR: servicenow
+
+jobs:
+  code-scanning:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # Findings make sn-lint exit 1; the report must still be uploaded.
+      - name: Run sn-lint
+        run: node bin/sn-lint.js --format sarif --output sn-lint.sarif "$SCRIPTS_DIR"
+        continue-on-error: true
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: sn-lint.sarif
+          category: sn-lint
+
+  gate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # Exit code 1 on any new ERROR. Add --max-warnings 0 to also fail on new warnings.
+      - name: Fail on new findings
+        run: node bin/sn-lint.js --baseline sn-lint-baseline.json "$SCRIPTS_DIR"
